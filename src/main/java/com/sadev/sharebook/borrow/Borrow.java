@@ -2,13 +2,20 @@ package com.sadev.sharebook.borrow;
 
 import com.sadev.sharebook.book.Book;
 import com.sadev.sharebook.user.User;
+import jakarta.persistence.*;
 
 import java.time.LocalDate;
-
+@Entity
 public class Borrow {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Integer id;
+    @ManyToOne
     private User borrower;
     //preteur
+    @ManyToOne
     private User lender;
+    @ManyToOne
     private Book book;
     private LocalDate askDate;
     private LocalDate closeDate;
@@ -19,6 +26,14 @@ public class Borrow {
         this.borrower = borrower;
         this.lender = lender;
         this.book = book;
+    }
+
+    public Integer getId() {
+        return id;
+    }
+
+    public void setId(Integer id) {
+        this.id = id;
     }
 
     public LocalDate getAskDate() {

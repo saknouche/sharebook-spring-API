@@ -12,7 +12,6 @@ public class User {
     @Size(min = 2, max = 25, message = "Le nom doit contenir entre 5 et 25 caractères.")
     private String firstName;
     @Size(min = 2, max = 25, message = "Le prénom doit contenir entre 5 et 25 caractères.")
-
     private String lastName;
     private String password;
 

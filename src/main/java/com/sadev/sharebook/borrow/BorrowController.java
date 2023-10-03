@@ -6,16 +6,19 @@ import com.sadev.sharebook.book.BookRepository;
 import com.sadev.sharebook.book.BookStatus;
 import com.sadev.sharebook.user.User;
 import com.sadev.sharebook.user.UserRepository;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.security.Principal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
 @RestController
+@SecurityRequirement(name = "bearerAuth")
 public class BorrowController {
     @Autowired
     BorrowRepository borrowRepository;
@@ -23,10 +26,12 @@ public class BorrowController {
     UserRepository userRepository;
     @Autowired
     BookRepository bookRepository;
+    @Autowired
+    BookController bookController;
 
     @GetMapping(value = "/borrows")
-    public ResponseEntity getMyBorrows() {
-        List<Borrow> borrows = borrowRepository.findByBorrowerId(BookController.getUserConnectedId());
+    public ResponseEntity getMyBorrows(Principal principal) {
+        List<Borrow> borrows = borrowRepository.findByBorrowerId(bookController.getUserConnectedId(principal));
         if (borrows == null) {
             return new ResponseEntity(HttpStatus.NO_CONTENT);
         }
@@ -34,8 +39,8 @@ public class BorrowController {
     }
 
     @PostMapping("/borrows/{bookId}")
-    public ResponseEntity createBorrow(@PathVariable("bookId") String bookId) {
-        Integer userConnectedId = BookController.getUserConnectedId();
+    public ResponseEntity createBorrow(@PathVariable("bookId") String bookId, Principal principal) {
+        Integer userConnectedId = bookController.getUserConnectedId(principal);
         Optional<User> borrower = userRepository.findById(userConnectedId);
         Optional<Book> book = bookRepository.findById(Integer.valueOf(bookId));
         if (borrower.isPresent() && book.isPresent() && book.get().getBookStatus().equals(BookStatus.FREE)) {

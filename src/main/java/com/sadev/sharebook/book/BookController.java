@@ -4,17 +4,21 @@ import com.sadev.sharebook.borrow.Borrow;
 import com.sadev.sharebook.borrow.BorrowRepository;
 import com.sadev.sharebook.user.User;
 import com.sadev.sharebook.user.UserRepository;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.web.bind.annotation.*;
 
+import java.security.Principal;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
 @RestController
+@SecurityRequirement(name = "bearerAuth")
 public class BookController {
 
     @Autowired
@@ -27,9 +31,9 @@ public class BookController {
     BorrowRepository borrowRepository;
 
     @GetMapping(value = "/books")
-    public ResponseEntity listBooks(@RequestParam(required = false) BookStatus status) {
+    public ResponseEntity listBooks(@RequestParam(required = false) BookStatus status, Principal principal) {
 
-        Integer userConnectedId = this.getUserConnectedId();
+        Integer userConnectedId = this.getUserConnectedId(principal);
         List<Book> books;
         //freeBooks
         if (status != null && status == BookStatus.FREE) {
@@ -42,17 +46,17 @@ public class BookController {
     }
 
     @GetMapping("/books/{bookId}")
-    public ResponseEntity loadBook(@PathVariable("bookId") String bookId){
+    public ResponseEntity loadBook(@PathVariable("bookId") String bookId) {
         Optional<Book> optBook = bookRepository.findById(Integer.valueOf(bookId));
-        if(!optBook.isPresent()){
+        if (!optBook.isPresent()) {
             return new ResponseEntity("Book not found", HttpStatus.BAD_REQUEST);
         }
         return new ResponseEntity(optBook.get(), HttpStatus.OK);
     }
 
     @PostMapping(value = "/books")
-    public ResponseEntity addBook(@Valid @RequestBody Book book) {
-        Integer userConnectedId = this.getUserConnectedId();
+    public ResponseEntity addBook(@Valid @RequestBody Book book, Principal principal) {
+        Integer userConnectedId = this.getUserConnectedId(principal);
         Optional<User> user = userRepository.findById(userConnectedId);
         Optional<Category> category = categoryRepository.findById(book.getCategoryId());
         if (category.isPresent()) {
@@ -72,9 +76,9 @@ public class BookController {
     }
 
     @PutMapping(value = "/books/{bookId}")
-    public ResponseEntity updateBook(@PathVariable("bookId") String bookId,@Valid @RequestBody Book book) {
+    public ResponseEntity updateBook(@PathVariable("bookId") String bookId, @Valid @RequestBody Book book) {
         Optional<Book> bookToUpdate = bookRepository.findById(Integer.valueOf(bookId));
-        if(!bookToUpdate.isPresent()){
+        if (!bookToUpdate.isPresent()) {
             return new ResponseEntity("Book not found", HttpStatus.BAD_REQUEST);
         }
         Book bookToSave = bookToUpdate.get();
@@ -82,7 +86,7 @@ public class BookController {
         bookToSave.setCategory(newCategory.get());
         bookToSave.setTitle(book.getTitle());
         bookRepository.save(bookToSave);
-        return new ResponseEntity(bookToSave,HttpStatus.OK);
+        return new ResponseEntity(bookToSave, HttpStatus.OK);
     }
 
     @DeleteMapping(value = "/books/{bookId}")
@@ -100,7 +104,7 @@ public class BookController {
                 return new ResponseEntity(borrower, HttpStatus.CONFLICT);
             }
         }
-        //Il est préférable de supprimer le book logiquement avec un boolean que de le supprimer phisiquement avec remove
+        //Il est préférable de supprimer le book logiquement avec un boolean que de le supprimer physiquement avec remove
         book.setDeleted(true);
         bookRepository.save(book);
         return new ResponseEntity(HttpStatus.NO_CONTENT);
@@ -109,13 +113,18 @@ public class BookController {
     @GetMapping("/categories")
     public ResponseEntity listCategories() {
         Iterable<Category> categories = categoryRepository.findAll();
-        if(categories == null){
+        if (categories == null) {
             return new ResponseEntity(HttpStatus.NO_CONTENT);
         }
         return new ResponseEntity(categories, HttpStatus.OK);
     }
 
-    public static Integer getUserConnectedId() {
-        return 1;
+    public Integer getUserConnectedId(Principal principal) {
+        if (!(principal instanceof UsernamePasswordAuthenticationToken)) {
+            throw new RuntimeException("User not found");
+        }
+        UsernamePasswordAuthenticationToken user = (UsernamePasswordAuthenticationToken) principal;
+        User oneByEmail = userRepository.findOneByEmail(user.getName());
+        return oneByEmail.getId();
     }
 }

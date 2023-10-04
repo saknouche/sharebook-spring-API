@@ -22,7 +22,7 @@ public class JwtFilter extends OncePerRequestFilter {
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
-        String jwt = resoleToken(request);
+        String jwt = resolveToken(request);
         if (StringUtils.hasText(jwt) && !isUrlPermitted(request)) {
             Authentication authentication = jwtUtils.getAuthentication(jwt);
             SecurityContextHolder.getContext().setAuthentication(authentication);
@@ -39,7 +39,7 @@ public class JwtFilter extends OncePerRequestFilter {
         return false;
     }
 
-    private String resoleToken(HttpServletRequest request) {
+    private String resolveToken(HttpServletRequest request) {
         //Extraire le token
         String bearerToken = request.getHeader(AUTHORIZATION_HEADER);
         if (StringUtils.hasText(bearerToken) && bearerToken.startsWith("Bearer ")) {

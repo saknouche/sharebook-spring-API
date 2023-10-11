@@ -5,22 +5,16 @@ import com.sadev.sharebook.jwt.JwtFilter;
 import com.sadev.sharebook.jwt.JwtUtils;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.util.StringUtils;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RestController;
-
-import java.util.List;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
+@CrossOrigin(origins = "*")
 public class UserController {
     @Autowired
     UserRepository userRepository;
@@ -32,26 +26,23 @@ public class UserController {
     JwtFilter jwtFilter;
 
     @PostMapping(value = "/users")
-    public ResponseEntity addUser(@Valid @RequestBody User user) {
+    public ResponseEntity<?> addUser(@Valid @RequestBody User user) {
 
         User existingUser = userRepository.findOneByEmail(user.getEmail());
         if (existingUser != null) {
             return new ResponseEntity("User already existing", HttpStatus.BAD_REQUEST);
         }
         User userSaved = saveUser(user);
-        Authentication authentication = jwtController.logUser(user.getEmail(), user.getPassword());
-        String jwt = jwtUtils.generateToken(authentication);
-        HttpHeaders httpHeaders = new HttpHeaders();
-        httpHeaders.add(jwtFilter.AUTHORIZATION_HEADER, "Bearer " + jwt);
-        return new ResponseEntity(userSaved,httpHeaders, HttpStatus.CREATED);
+        return new ResponseEntity("L'inscription a bien été effectuée !", HttpStatus.CREATED);
     }
 
     @GetMapping(value = "/isConnected")
-    public ResponseEntity getUSerConnected() {
+    public ResponseEntity getUserConnected() {
         Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         if (principal instanceof UserDetails) {
             return new ResponseEntity(((UserDetails) principal).getUsername(), HttpStatus.OK);
         }
+        System.out.println(((UserDetails) principal).getUsername());
         return new ResponseEntity("User is not connected", HttpStatus.FORBIDDEN);
     }
 

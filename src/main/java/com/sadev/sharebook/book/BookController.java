@@ -2,6 +2,8 @@ package com.sadev.sharebook.book;
 
 import com.sadev.sharebook.borrow.Borrow;
 import com.sadev.sharebook.borrow.BorrowRepository;
+import com.sadev.sharebook.schema.BookResponse;
+import com.sadev.sharebook.schema.UserInfoResponse;
 import com.sadev.sharebook.user.User;
 import com.sadev.sharebook.user.UserRepository;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -13,12 +15,13 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.web.bind.annotation.*;
 
 import java.security.Principal;
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
 @RestController
 @SecurityRequirement(name = "bearerAuth")
+@CrossOrigin(origins = "*")
 public class BookController {
 
     @Autowired
@@ -31,18 +34,25 @@ public class BookController {
     BorrowRepository borrowRepository;
 
     @GetMapping(value = "/books")
-    public ResponseEntity listBooks(@RequestParam(required = false) BookStatus status, Principal principal) {
+    public ResponseEntity<?> listBooks(@RequestParam(required = false) BookStatus status, Principal principal) {
 
         Integer userConnectedId = this.getUserConnectedId(principal);
         List<Book> books;
+        List<BookResponse> bookResponses = new ArrayList<>();
         //freeBooks
         if (status != null && status == BookStatus.FREE) {
             books = bookRepository.findByStatusAndUserIdNotAndDeletedFalse(status, userConnectedId);
+            for (Book book : books) {
+                bookResponses.add(new BookResponse(book.getId(), book.getTitle(), book.getCategory(),book.getBookStatus(), UserInfoResponse.getUserInfoResponse(book.getUser())));
+            }
         } else {
             //Books
             books = bookRepository.findByUserIdAndDeletedFalse(userConnectedId);
+            for (Book book : books) {
+                bookResponses.add(new BookResponse(book.getId(), book.getTitle(), book.getCategory(), book.getBookStatus()));
+            }
         }
-        return new ResponseEntity(books, HttpStatus.OK);
+        return new ResponseEntity(bookResponses, HttpStatus.OK);
     }
 
     @GetMapping("/books/{bookId}")
@@ -79,7 +89,13 @@ public class BookController {
     public ResponseEntity updateBook(@PathVariable("bookId") String bookId, @Valid @RequestBody Book book) {
         Optional<Book> bookToUpdate = bookRepository.findById(Integer.valueOf(bookId));
         if (!bookToUpdate.isPresent()) {
-            return new ResponseEntity("Book not found", HttpStatus.BAD_REQUEST);
+            return new ResponseEntity("Ce livre n'existe pas !", HttpStatus.BAD_REQUEST);
+        }
+        List<Borrow> borrows = borrowRepository.findByBookId(Integer.valueOf(bookId));
+        for(Borrow borrow : borrows){
+            if(borrow.getCloseDate() == null){
+                return new ResponseEntity("Ce livre est en cours d'emprunt !", HttpStatus.BAD_REQUEST);
+            }
         }
         Book bookToSave = bookToUpdate.get();
         Optional<Category> newCategory = categoryRepository.findById(book.getCategoryId());
@@ -93,15 +109,15 @@ public class BookController {
     public ResponseEntity deleteBook(@PathVariable("bookId") String bookId) {
         Optional<Book> bookToDelete = bookRepository.findById(Integer.valueOf(bookId));
         if (!bookToDelete.isPresent()) {
-            return new ResponseEntity("Book not found", HttpStatus.BAD_REQUEST);
+            return new ResponseEntity("Ce livre n'existe pas !", HttpStatus.BAD_REQUEST);
         }
         //Vérifier les emprunts en cours de ce livre
         Book book = bookToDelete.get();
         List<Borrow> borrows = borrowRepository.findByBookId(book.getId());
         for (Borrow borrow : borrows) {
             if (borrow.getCloseDate() == null) {
-                User borrower = borrow.getBorrower();
-                return new ResponseEntity(borrower, HttpStatus.CONFLICT);
+                //User borrower = borrow.getBorrower();
+                return new ResponseEntity("Ce livre est en cours d'emprunt !", HttpStatus.CONFLICT);
             }
         }
         //Il est préférable de supprimer le book logiquement avec un boolean que de le supprimer physiquement avec remove
